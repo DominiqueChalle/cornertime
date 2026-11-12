@@ -62,6 +62,48 @@ describe('deserialize', () => {
         assert.throws(() => deserialize(headerMissing, 'PUNISHMENT REPORT'));
         assert.throws(() => deserialize(footerMissing, 'PUNISHMENT REPORT'));
     });
+
+    it('accepts Base64 data without markers', () => {
+        assert.deepEqual(
+            deserialize('eyJhIjo1fQ==', 'PUNISHMENT REPORT'),
+            knownObject
+        );
+    });
+
+    it('accepts missing or extra marker hyphens', () => {
+        const fewerHyphens = knownSerialized
+            .replace('-----BEGIN', '----BEGIN')
+            .replace('-----END', '----END');
+
+        const extraHyphens = knownSerialized
+            .replace('-----BEGIN', '------BEGIN')
+            .replace('-----END', '------END');
+
+        assert.deepEqual(
+            deserialize(fewerHyphens, 'PUNISHMENT REPORT'),
+            knownObject
+        );
+
+        assert.deepEqual(
+            deserialize(extraHyphens, 'PUNISHMENT REPORT'),
+            knownObject
+        );
+    });
+
+    it('rejects invalid Base64 data', () => {
+        assert.throws(
+            () => deserialize('Not valid Base64!', 'PUNISHMENT REPORT')
+        );
+    });
+
+    it('rejects invalid JSON content', () => {
+        const invalidJson = encodeBase64('not JSON');
+
+        assert.throws(
+            () => deserialize(invalidJson, 'PUNISHMENT REPORT')
+        );
+    });
+
 });
 
 

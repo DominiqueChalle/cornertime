@@ -77,27 +77,58 @@ export function serialize(obj: object, kind: Kind): string {
     return `${header}\n${data}\n${footer}`;
 }
 
+
 export function deserialize(data: string, kind: Kind): any {
     data = data.trim();
 
-    const expectedHeader = makeHeader(kind);
-    const expectedFooter = makeFooter(kind);
+    // Accept complete markers, markers with missing or extra
+    // hyphens, or Base64 content without markers.
+    const escapedKind = kind.replace(/ /g, '\\s+');
 
-    if (data.slice(0, expectedHeader.length) !== expectedHeader) {
-        throw new TypeError('data to deserialize does not start with our header');
+    const header = new RegExp(
+        '^\\s*-*BEGIN\\s+CORNERTIME\\s+' + escapedKind + '-*\\s*',
+        'i'
+    );
+
+    const footer = new RegExp(
+        '\\s*-*END\\s+CORNERTIME\\s+' + escapedKind + '-*\\s*$',
+        'i'
+    );
+
+    const hasHeader = header.test(data);
+    const hasFooter = footer.test(data);
+
+    // Reject incomplete reports with only one marker.
+    if (hasHeader && !hasFooter) {
+        throw new TypeError('Missing report end marker.');
     }
 
-    if (data.slice(data.length - expectedFooter.length) !== expectedFooter) {
-        throw new TypeError('data to deserialize does not end with our footer');
+    if (!hasHeader && hasFooter) {
+        throw new TypeError('Missing report start marker.');
     }
 
-    // remove header and footer
-    data = data.slice(expectedHeader.length, data.length - expectedFooter.length);
-    data = decodeBase64(data);
+    if (hasHeader && hasFooter) {
+        data = data.replace(header, '').replace(footer, '');
+    }
+
+    // Remove whitespace introduced by line wrapping.
+    data = data.replace(/\s+/g, '');
+
+    // Validate Base64 before decoding.
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data)) {
+        throw new TypeError('Invalid Base64 data');
+    }
 
     // TODO Schema validation
-    return JSON.parse(data);
+
+    try {
+        return JSON.parse(decodeBase64(data));
+    } catch (e) {
+        throw new TypeError('Invalid report content.');
+    }
+
 }
+
 
 
 // Debug globals

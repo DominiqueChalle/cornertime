@@ -12,6 +12,7 @@ interface ReportViewerProps {
 interface ReportViewerState {
     reportSource: string;
     report?: Report;
+	error?: string;
 }
 
 
@@ -46,21 +47,34 @@ export default class ReportViewer extends React.Component<ReportViewerProps, Rep
                     </div>
                 </form>
 
+				{this.state.error ? (
+					<div className="alert alert-danger" role="alert">
+						{this.state.error}
+					</div>
+				) : null}
+
                 {this.state.report ? <ReportCard report={this.state.report} /> : null}
             </div>
         );
     }
 
-    onChange = (event: React.FormEvent<HTMLTextAreaElement>) => {
-        let reportSource = event.currentTarget.value;
-        let report: Report | undefined = undefined;
 
-        try {
-            report = deserializeReport(reportSource);
-        } catch (e) {
-            // Wasn't a valid report. Won't show anything.
-        }
+	onChange = (event: React.FormEvent<HTMLTextAreaElement>) => {
+		const reportSource = event.currentTarget.value;
+		let report: Report | undefined = undefined;
+		let error: string | undefined = undefined;
 
-        this.setState({ report, reportSource });
-    }
+		if (reportSource.trim() !== '') {
+			try {
+				report = deserializeReport(reportSource);
+			} catch (e) {
+				error = e instanceof Error
+					? e.message
+					: 'Unable to decode the report.';
+			}
+		}
+
+		this.setState({ report, reportSource, error });
+	}
+
 }
